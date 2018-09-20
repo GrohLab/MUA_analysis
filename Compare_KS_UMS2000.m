@@ -1,13 +1,13 @@
 %% let's compare UMS and kilosort...
-clear all
+% clearvars
 close all
 cd D:\GD_Rebecca\Work\1_Active_Projects\PAIN\MUA_analysis
 
-homedir='PracticeCheck'
+homedir='PracticeCheck';
 cd(homedir)
 load M16_C2_Mech+L6_4mWanalysis.mat Triggers Fs Conditions
 stimulus=lazynorm(Triggers.whisker);
-ppms=Fs/1000
+ppms=Fs/1000;
 T=numel(Triggers.whisker)/ppms/1000; %duration of experiment in seconds!
 
 %% find every single trigger for step stimuli

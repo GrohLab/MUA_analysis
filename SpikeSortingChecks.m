@@ -1,7 +1,7 @@
 
 %% exploratory script for looking at MUA recordings
-gray=[.7 .7 .7]
-N=numel(sp)
+gray=[.7 .7 .7];
+N=numel(sp);
 % get color for each neuron, just for plotting
 colors=brighten(distinguishable_colors(N),-.25);%color for each unit
 
