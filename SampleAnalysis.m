@@ -1,9 +1,9 @@
 %% multiunit recording practice
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
-clear all
-homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
+% homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
+homedir='E:\Data\Sailaja\12.03.19\M59_C1';
 cd(homedir)
-fname = 'M137_C5_Mech_L6 05mW'; 
+fname = 'M59_C1_HL +Terminal sti_1mW';
 load([fname,'_all_channels.mat'])
 load([fname,'analysis.mat'],'Conditions','Triggers')
 fs = Fs;
@@ -18,7 +18,11 @@ Spikes={};
 Names={};
 
 for i=1:size(sortedData,1)
-    Spikes{i}=cell2mat(sortedData(i,2));
+    if iscolumn(sortedData{i,2})
+        Spikes{i}=cell2mat(sortedData(i,2))';
+    else
+        Spikes{i}=cell2mat(sortedData(i,2));
+    end
     Names{i}=sortedData(i,1);
 end
 
@@ -31,31 +35,25 @@ close all
 close all
 for i=1:numel(Spikes) % insert cluster numbers here
     figure
-      isis=[diff(Spikes{i})*1000]; %in ms
-      [hisi isi_bins]=hist(isis,[1:10000]);
-      plot(log10(isi_bins),hisi,'linewidth',2)
-      title(['Cluster: ',num2str(i)])
+    isis=[diff(Spikes{i})*1000]; %in ms
+    [hisi isi_bins]=hist(isis,[1:10000]);
+    plot(log10(isi_bins),hisi,'linewidth',2)
+    title(['Cluster: ',num2str(i)])
 end
-        
+
 
 %%
 
 %bads=[1 2 3 14 6]  %1 2 3 14 are light artifacts
-bads=[1,3,9,10,14,27,28,42,45,50,51,23,11];
-noresponse=[41];
+bads=[];
+noresponse=[];
 bads=[bads noresponse];
 %bads=[]; %uncomment this to have bads empty
 %assumes that all spike trains are good
 goods=1:numel(Spikes);
 
-%removes bad units 
- goods=setdiff(goods,bads);
-
-
-%use these two lines to look at hand-defined lasers response
-
-goods=[1,3,9,10,14,27,28,42,45,50,51,23,11] %fill in hand-selected channels here!
-bads=[];
+%removes bad units
+goods=setdiff(goods,bads);
 
 %Spikes=Spikes(goods);
 %Names=Names(goods);
@@ -68,9 +66,9 @@ bads=[];
 close all
 for I=[1:4]
     ppms=fs/1000;
-    spikes=cell2mat(Spikes)*1000*ppms; %spikes back in samples
+    spikes=cell2mat(Spikes).*1000.*ppms; %spikes back in samples
     name=Names{I};
-    timeBefore=500*ppms;timeAfter=6500*ppms;
+    timeBefore=5000*ppms;timeAfter=6500*ppms;
     plotit=1;binsize=200;
     triggers=Conditions{I}.Triggers;
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
@@ -99,20 +97,6 @@ for ccl = 1:lenSpks
             clstrInfo =...
                 ['Cluster ',num2str(ccl),' against cluster ',num2str(xccl)];
             disp(clstrInfo)
-            % Signal reconstruction
-            auxSignal1 = false(1,length(mech));
-            auxSignal2 = false(1,length(mech));
-            % Spikes assignment
-            auxSignal1(round(fs*Spikes{ccl})) = true;
-            auxSignal2(round(fs*Spikes{xccl})) = true;
-            % Selecting a subsampled version of the signals given a maximum
-            % lag.
-            MxLag = 25; % Seconds
-            rIdx = randi([round(fs*MxLag),length(mech)-round(fs*MxLag)],1);
-            disp(['Random time selected: ',num2str(rIdx/fs),' seconds'])
-            rWindIdx = rIdx-round(fs*MxLag):rIdx+round(fs*MxLag);
-            auxSignal1 = auxSignal1(rWindIdx);
-            auxSignal2 = auxSignal2(rWindIdx);
             % Cross correlation
             % [auxCorr, lTx] = xcorr(auxSignal1,auxSignal2,'coeff');
             % figure;plot(lTx/fs,auxCorr)
@@ -142,7 +126,7 @@ save CrossCoeffData crscor goods bads
 % due to their high similarity. The possibilities are that they belong to a
 % same unit as busrting spikes, the cell shifted to another channel or any
 % other reasonable cause.
-mergingPackages = {[1,3,9,10,11,14,27,28,42,45,50,51,23,]};
+mergingPackages = {[]};
 Npg = numel(mergingPackages);
 mSpikes = cell(1,Npg);
 auxSignal = false(1,length(mech));
@@ -167,7 +151,7 @@ plotRaster = true; % No raster plot in the figures!!
 %close all
 for i=1:numel(Spikes)
     if ~ismember(i,bads)
-        for I=4 %pick out conditions to look at
+        for I=1 %pick out conditions to look at
             ppms=fs/1000;
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
@@ -187,9 +171,8 @@ end
 
 
 plotRaster = true; % raster plot in the figures!!
-close all
-for i=[] % insert cluster numbers here
-    for I=4 %pick out conditions to look at
+for i= 3:31 % insert cluster numbers here
+    for I=1:4 %pick out conditions to look at
         ppms=fs/1000;
         spikes=(Spikes{i})*1000*ppms; %spikes back in samples
         name=Names{i};
@@ -203,7 +186,7 @@ for i=[] % insert cluster numbers here
 end
 %% Spikes backup.
 % Elimination of the 'bads' in the 'Spikes' variable.
-% But also making a backup before deleting. 
+% But also making a backup before deleting.
 % WARNING! If you run this section twice without restoring the backup, you
 % will lose good units!!
 Spikes_BACKUP = Spikes;
@@ -220,8 +203,8 @@ ppms=fs/1e3;
 spikes=cell2mat(Spikes)*1000*ppms;
 plotit=1;
 binsize=50*ppms;
-timeBefore=1000*ppms;
-timeAfter=5500*ppms;
+timeBefore=5000*ppms;
+timeAfter=7000*ppms;
 H=[];
 conds={};
 count=0;
@@ -256,7 +239,7 @@ for I=1:4  %by condition
     for i=1:numel(Spikes)   %for each neuron
         if consIdxs(i)
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
-            name=Names{i};    
+            name=Names{i};
             %use same binning etc as pop hist
             [SPIKES{i} h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
         end
@@ -306,20 +289,28 @@ colors=cmap(1:n:end,:);
 
 %% plot it all
 figure('Color',[1,1,1])
-yUpLimit = max(cell2mat(cellfun(@(x) (cellfun(@max,x(end),'UniformOutput',false)),YSs)));
+% yUpLimit = max(cell2mat(cellfun(@(x) (cellfun(@max,x(end),'UniformOutput',false)),YSs)));
+Ncl = numel(SPIKES);
+
 for ii=1:4
-    subplot(6,4,[ii, ii+4, ii+8])
-    
-    for j=1:numel(SPIKESs{ii})
+    auxAx = subplot(6,4,[ii, ii+4, ii+8]);
+    Nt = numel(Conditions{ii}.Triggers);
+    for j=1:numel(SPIKESs{ii})        
         xs=SPIKESs{ii}{j}/ppms;
-        ys=YSs{ii}{j}
+        ys=YSs{ii}{j};
         plot(xs,ys,'.','color',colors(j,:),'markersize',10)
         hold on
     end
+    yUpLimit = max(YSs{ii}{end});
+    yticks = ((1:Ncl) - 0.5) * Nt;
+    set(auxAx,'YTick',yticks,'YTickLabel',1:Ncl);ylabel(...
+        sprintf('Clusters_{(t = %d)}',Nt))
+    
     % ylabel 'trials/neuron'
     box off
     xlim([min(bins) max(bins)])
     ylim([0,yUpLimit])
+    
 end
 
 
@@ -328,16 +319,27 @@ titles={'mechanical',...
     'mechanical + 1 Hz L6',...
     'mechanical + 10 Hz L6',...
     '10 Hz L6 control'};
+% yLimit = max(H(:)) * 1.05;
+yLimit = 50;
+load(fname,'chan21')
+[~,cStack] =...
+    getStacks(false(1,length(chan21)),...
+    Conditions{1}.Triggers,'on',[-min(bins),max(bins)]*1e-3,...
+    fs,fs,[],chan21');
+meanMech = mean(squeeze(cStack),2);
 for ii=1:4
     
-    subplot(6,4,[ii+16 ii+20])
+    auxAx = subplot(6,4,[ii+16 ii+20]);
     bar(bins,H(ii,:),'k')
+    if ~strcmpi(Conditions{ii}.name,'lasercontrol')
+        
+    end
     xlim([min(bins) max(bins)])
     xlabel ms
     % ylabel 'pooled spike rate'
     title(titles{ii})
     box off
-    ylim([0 200])
+    ylim([0 yLimit])
 end
 
 %
@@ -345,6 +347,8 @@ t = 0:1/fs:(length(Trig_mech{1}(1,:))-1)/fs;
 t = 1000*(t - timeBefore/fs);
 subplot(6,4,13)
 plot(t,Trig_mech{1}(1,:),'Color',[255, 128, 0]/255,'linewidth',2)
+hold on;plot(t,...
+    scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
 set(gca,'Visible','off')
 box off
 xlim([min(bins) max(bins)])
@@ -353,6 +357,8 @@ ylabel Stimulus
 
 subplot(6,4,14)
 plot(t,Trig_mech{2}(1,:),'Color',[255, 128, 0]/255,'linewidth',2);
+hold on;plot(t,...
+    scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
 hold on
 plot(t,Trig_light{2}(1,:),'Color', [0, 64, 255]/255','linewidth',1);
 set(gca,'Visible','off')
@@ -362,6 +368,8 @@ ylim([0 1.5])
 
 subplot(6,4,15)
 plot(t,Trig_mech{3}(1,:),'Color',[255, 128, 0]/255,'linewidth',2);
+hold on;plot(t,...
+    scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
 hold on
 plot(t,Trig_light{3}(1,:),'Color', [0, 64, 255]/255','linewidth',1);
 set(gca,'Visible','off')
