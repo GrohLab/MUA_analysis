@@ -1,4 +1,5 @@
 %% multiunit recording practice
+clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
 homedir='E:\Data\Sailaja\12.03.19\M59_C1';
@@ -45,7 +46,9 @@ end
 %%
 
 %bads=[1 2 3 14 6]  %1 2 3 14 are light artifacts
-bads=[];
+%bads=[2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21,...
+%    22, 23, 25, 26, 27, 31];
+bads = [];
 noresponse=[];
 bads=[bads noresponse];
 %bads=[]; %uncomment this to have bads empty
@@ -74,8 +77,6 @@ for I=[1:4]
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
     title(Conditions{I}.name)
 end
-
-lenSpks = length(Spikes);
 %% Cross-correlation or relationship between clusters
 % Creating a square matrix containing the cross correlation normalized
 % peaks omitting the 'bads' clusters. The input to the cross correlation
@@ -151,7 +152,7 @@ plotRaster = true; % No raster plot in the figures!!
 %close all
 for i=1:numel(Spikes)
     if ~ismember(i,bads)
-        for I=1 %pick out conditions to look at
+        for I=4 %pick out conditions to look at
             ppms=fs/1000;
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
@@ -171,7 +172,7 @@ end
 
 
 plotRaster = true; % raster plot in the figures!!
-for i= 3:31 % insert cluster numbers here
+for i= 1 % insert cluster numbers here
     for I=1:4 %pick out conditions to look at
         ppms=fs/1000;
         spikes=(Spikes{i})*1000*ppms; %spikes back in samples
