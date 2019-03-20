@@ -7,7 +7,15 @@ cd(homedir)
 fname = 'M59_C1_HL +Terminal sti_1mW';
 load([fname,'_all_channels.mat'])
 load([fname,'analysis.mat'],'Conditions','Triggers')
-fs = Fs;
+if exist('Fs','var')
+    fs = Fs;
+elseif exist('fs','var')
+    Fs = fs;
+else
+    strFS = inputdlg('Unknown sampling frequency. Please provide it:'...
+        ,'Sampling Frequency warning');
+    fs = str2double(strFS);
+end
 
 %% Initialize the variables
 % This section loads the cluster spike times into the 'Spikes' cell array.
