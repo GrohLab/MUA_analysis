@@ -202,7 +202,7 @@ Spikes = Spikes_BACKUP;
 ppms=fs/1e3;
 spikes=cell2mat(Spikes)*1000*ppms;
 plotit=1;
-binsize=50*ppms;
+binsize=150*ppms;
 timeBefore=5000*ppms;
 timeAfter=7000*ppms;
 H=[];
@@ -281,8 +281,7 @@ end
 %
 
 %% get color for each neuron, just for plotting
-colormap jet;
-cmap=colormap;
+cmap=jet();
 n=floor(size(cmap,1)/numel(SPIKESs{1}));
 colors=cmap(1:n:end,:);
 
@@ -319,8 +318,8 @@ titles={'mechanical',...
     'mechanical + 1 Hz L6',...
     'mechanical + 10 Hz L6',...
     '10 Hz L6 control'};
-% yLimit = max(H(:)) * 1.05;
-yLimit = 50;
+yLimit = 5*ceil(5\(max(H(:)) * 1.05));
+% yLimit = 50;
 load(fname,'chan21')
 [~,cStack] =...
     getStacks(false(1,length(chan21)),...
