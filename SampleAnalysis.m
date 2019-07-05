@@ -2,15 +2,29 @@
 clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
-homedir='E:\Data\Sailaja\12.03.19\M59_C1';
+homedir='E:\Data\SuperiorColicullus\1600_1100_3500_MX';
 cd(homedir)
-fname = 'M59_C1_HL +Terminal sti_1mW';
+fname = 'SC_190620_Emilio_Jesus_SC_1600_1100_3500_h5_MX';
 load([fname,'_all_channels.mat'])
 load([fname,'analysis.mat'],'Conditions','Triggers')
+if ~iscell(Conditions)
+    auxCell = cell(numel(Conditions),1);
+    for ccond = 1:numel(Conditions)
+        auxCell(ccond) = {Conditions(ccond)};
+    end
+    Conditions = auxCell;
+    clearvars auxCell
+end
 if exist('Fs','var')
     fs = Fs;
 elseif exist('fs','var')
     Fs = fs;
+elseif exist([fname,'_sampling_frequency.mat'],'file')
+    try
+        load([fname,'_sampling_frequency.mat'],'fs')
+    catch
+        % nothing happens
+    end
 else
     strFS = inputdlg('Unknown sampling frequency. Please provide it:'...
         ,'Sampling Frequency warning');
@@ -56,7 +70,7 @@ end
 %bads=[1 2 3 14 6]  %1 2 3 14 are light artifacts
 %bads=[2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21,...
 %    22, 23, 25, 26, 27, 31];
-bads = [];
+bads = [3:5,8:14,16,18:21,23:33,35:41,47:52,58,59,61];
 noresponse=[];
 bads=[bads noresponse];
 %bads=[]; %uncomment this to have bads empty
@@ -75,11 +89,11 @@ goods=setdiff(goods,bads);
 %% looking at collected data
 
 close all
-for I=[1:4]
+for I=1:numel(Conditions)
     ppms=fs/1000;
     spikes=cell2mat(Spikes).*1000.*ppms; %spikes back in samples
     name=Names{I};
-    timeBefore=5000*ppms;timeAfter=6500*ppms;
+    timeBefore=300*ppms;timeAfter=1200*ppms;
     plotit=1;binsize=200;
     triggers=Conditions{I}.Triggers;
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
@@ -180,8 +194,8 @@ end
 
 
 plotRaster = true; % raster plot in the figures!!
-for i= 1 % insert cluster numbers here
-    for I=1:4 %pick out conditions to look at
+for i= 67 % insert cluster numbers here
+    for I=9 %pick out conditions to look at
         ppms=fs/1000;
         spikes=(Spikes{i})*1000*ppms; %spikes back in samples
         name=Names{i};
@@ -211,14 +225,14 @@ Spikes = Spikes_BACKUP;
 ppms=fs/1e3;
 spikes=cell2mat(Spikes)*1000*ppms;
 plotit=1;
-binsize=150*ppms;
-timeBefore=5000*ppms;
-timeAfter=7000*ppms;
+binsize=50*ppms;
+timeBefore=500*ppms;
+timeAfter=1200*ppms;
 H=[];
 conds={};
 count=0;
 Trig_mech={};Trig_light={};
-for I=1:4
+for I=1:numel(Conditions)
     count=count+1;
     %spikes back in samples
     name=Names{I};
@@ -241,7 +255,7 @@ Sp={};
 count=0;
 plotit=1;
 
-for I=1:4  %by condition
+for I=1:numel(Conditions)  %by condition
     count=count+1;
     triggers=Conditions{I}.Triggers;
     SPIKES={};
@@ -299,9 +313,9 @@ colors=cmap(1:n:end,:);
 figure('Color',[1,1,1])
 % yUpLimit = max(cell2mat(cellfun(@(x) (cellfun(@max,x(end),'UniformOutput',false)),YSs)));
 Ncl = numel(SPIKES);
-
-for ii=1:4
-    auxAx = subplot(6,4,[ii, ii+4, ii+8]);
+Ncon = numel(Conditions);
+for ii=1:Ncon
+    auxAx = subplot(6,Ncon,[ii, ii+Ncon, ii+(Ncon*2)]);
     Nt = numel(Conditions{ii}.Triggers);
     for j=1:numel(SPIKESs{ii})        
         xs=SPIKESs{ii}{j}/ppms;
@@ -323,21 +337,26 @@ end
 
 
 
-titles={'mechanical',...
-    'mechanical + 1 Hz L6',...
-    'mechanical + 10 Hz L6',...
-    '10 Hz L6 control'};
+% titles={'mechanical',...
+%     'mechanical + 1 Hz L6',...
+%     'mechanical + 10 Hz L6',...
+%     '10 Hz L6 control'};
+titles = cell(Ncon,1);
+for cct = 1:Ncon
+    titles(cct) = {Conditions{cct}.name};
+end
 yLimit = 5*ceil(5\(max(H(:)) * 1.05));
 % yLimit = 50;
-load(fname,'chan21')
+% load(fname,'chan21')
+chan21 = mech;
 [~,cStack] =...
     getStacks(false(1,length(chan21)),...
     Conditions{1}.Triggers,'on',[-min(bins),max(bins)]*1e-3,...
     fs,fs,[],chan21');
 meanMech = mean(squeeze(cStack),2);
-for ii=1:4
+for ii=1:Ncon
     
-    auxAx = subplot(6,4,[ii+16 ii+20]);
+    auxAx = subplot(6,Ncon,[ii+(4*Ncon) ii+(5*Ncon)]);
     bar(bins,H(ii,:),'k')
     if ~strcmpi(Conditions{ii}.name,'lasercontrol')
         
@@ -353,7 +372,7 @@ end
 %
 t = 0:1/fs:(length(Trig_mech{1}(1,:))-1)/fs;
 t = 1000*(t - timeBefore/fs);
-subplot(6,4,13)
+subplot(6,Ncon,4*Ncon - 3)
 plot(t,Trig_mech{1}(1,:),'Color',[255, 128, 0]/255,'linewidth',2)
 hold on;plot(t,...
     scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
@@ -363,7 +382,7 @@ xlim([min(bins) max(bins)])
 ylim([0 1.5])
 ylabel Stimulus
 
-subplot(6,4,14)
+subplot(6,Ncon,4*Ncon - 2)
 plot(t,Trig_mech{2}(1,:),'Color',[255, 128, 0]/255,'linewidth',2);
 hold on;plot(t,...
     scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
@@ -374,7 +393,7 @@ box off
 xlim([min(bins) max(bins)])
 ylim([0 1.5])
 
-subplot(6,4,15)
+subplot(6,Ncon,4*Ncon - 1)
 plot(t,Trig_mech{3}(1,:),'Color',[255, 128, 0]/255,'linewidth',2);
 hold on;plot(t,...
     scaleOnLine(meanMech(1:length(t)),0,1),'Color',[255, 51, 0]/255,'linewidth',2)
@@ -385,7 +404,7 @@ box off
 xlim([min(bins) max(bins)])
 ylim([0 1.5])
 
-subplot(6,4,16)
+subplot(6,Ncon,4*Ncon)
 plot(t,Trig_light{4}(1,:),'Color', [0, 64, 255]/255','linewidth',1);
 set(gca,'Visible','off')
 box off
