@@ -171,15 +171,17 @@ save CrossCoeffData Spikes mergingPackages bads -append
 %% looking at individual conditions and clusters for good clusters
 
 plotRaster = true; % No raster plot in the figures!!
+ppms=fs/1000;
+timeBefore=50*ppms;
+timeAfter=200*ppms;
+binsize=2.5*ppms;
+plotit=1;
 %close all
 for i=1:numel(Spikes)
     if ~ismember(i,bads)
         for I=4 %pick out conditions to look at
-            ppms=fs/1000;
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
-            timeBefore=5000*ppms;timeAfter=8200*ppms;
-            plotit=1;binsize=100*ppms;
             triggers=Conditions{I}.Triggers;
             [sp h bins trig_mech trig_light f]=...
                 triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRaster);
@@ -193,14 +195,16 @@ end
 %% looking at possible artifacts
 
 
+ppms=fs/1000;
+timeBefore=150*ppms;
+timeAfter=150*ppms;
+plotit=1;
+binsize=2.5*ppms;
 plotRaster = true; % raster plot in the figures!!
 for i= 67 % insert cluster numbers here
     for I=9 %pick out conditions to look at
-        ppms=fs/1000;
         spikes=(Spikes{i})*1000*ppms; %spikes back in samples
         name=Names{i};
-        timeBefore=5000*ppms;timeAfter=8200*ppms;
-        plotit=1;binsize=10*ppms;
         triggers=Conditions{I}.Triggers;
         [sp h bins trig_mech trig_light f]=...
             triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRaster);
@@ -304,10 +308,10 @@ end
 %
 
 %% get color for each neuron, just for plotting
-cmap=jet();
-n=floor(size(cmap,1)/numel(SPIKESs{1}));
-colors=cmap(1:n:end,:);
-
+% cmap=jet();
+% n=floor(size(cmap,1)/numel(SPIKESs{1}));
+% colors=cmap(1:n:end,:);
+colors = jet(numel(SPIKESs{1}));
 
 %% plot it all
 figure('Color',[1,1,1])
@@ -323,7 +327,8 @@ for ii=1:Ncon
         plot(xs,ys,'.','color',colors(j,:),'markersize',10)
         hold on
     end
-    yUpLimit = max(YSs{ii}{end});
+    lstResp = find(~cellfun(@isempty,YSs{3}),1,'last');
+    yUpLimit = max(YSs{ii}{lstResp});
     yticks = ((1:Ncl) - 0.5) * Nt;
     set(auxAx,'YTick',yticks,'YTickLabel',1:Ncl);ylabel(...
         sprintf('Clusters_{(t = %d)}',Nt))
