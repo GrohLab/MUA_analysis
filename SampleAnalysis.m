@@ -30,6 +30,8 @@ else
         ,'Sampling Frequency warning');
     fs = str2double(strFS);
 end
+ppms=fs/1000;
+
 
 %% Initialize the variables
 % This section loads the cluster spike times into the 'Spikes' cell array.
@@ -48,21 +50,47 @@ for i=1:size(sortedData,1)
     end
     Names{i}=sortedData(i,1);
 end
+badsIdx = cellfun(@(x) x==3,sortedData(:,3));
+bads = find(badsIdx);
+silentUnits = cellfun(@numel,Spikes) < 10;
+bads = union(bads,find(silentUnits));
+goods=setdiff(1:numel(Spikes),bads);
 
 mech=Triggers.whisker;
 light=Triggers.light;
+Ns = length(mech);
+Nt = Ns/fs;
 
-close all
+spkLog = cell(size(sortedData,1),1);
+SubsFlag = any(cellfun(@all,cellfun(@eq,...
+    cellfun(@minus,...
+    cellfun(@round,Spikes,...
+    'UniformOutput',false),Spikes,...
+    'UniformOutput',false),repmat({0},1,numel(Spikes)),...
+    'UniformOutput',false)));
+if SubsFlag
+    fact = 1;
+else
+    fact = fs;
+end
+% Creation of a cell array containing logic traces possibly for the DEx
+for cspk = 1:length(sortedData)
+    spkLog(cspk) = {DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns)};
+end
+spkAllLog = cell2mat(spkLog);
+spkAllLog = any(spkAllLog,1);
 
 %% look at inter-spike intervals as another check for pure light-evoke electrical artifacts
 close all
-for i=1:numel(Spikes) % insert cluster numbers here
-    figure
-    isis=[diff(Spikes{i})*1000]; %in ms
-    [hisi isi_bins]=hist(isis,[1:10000]);
-    plot(log10(isi_bins),hisi,'linewidth',2)
-    title(['Cluster: ',num2str(i)])
-end
+% for i=1:numel(Spikes) % insert cluster numbers here
+%     figure
+%     isis=[diff(Spikes{i})*1000]; %in ms
+%     [hisi isi_bins]=hist(isis,[1:10000]);
+%     plot(log10(isi_bins),hisi,'LineWidth',2)
+%     title(['Cluster: ',sortedData{i,1},' #',num2str(i)])
+% end
+
+[~,FRpu] = plotISI(Spikes(goods),fs,sortedData(goods,1));
 
 
 %%
@@ -70,15 +98,15 @@ end
 %bads=[1 2 3 14 6]  %1 2 3 14 are light artifacts
 %bads=[2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21,...
 %    22, 23, 25, 26, 27, 31];
-bads = [3:5,8:14,16,18:21,23:33,35:41,47:52,58,59,61];
+
 noresponse=[];
 bads=[bads noresponse];
 %bads=[]; %uncomment this to have bads empty
 %assumes that all spike trains are good
-goods=1:numel(Spikes);
+
 
 %removes bad units
-goods=setdiff(goods,bads);
+
 
 %Spikes=Spikes(goods);
 %Names=Names(goods);
@@ -89,12 +117,14 @@ goods=setdiff(goods,bads);
 %% looking at collected data
 
 close all
+timeBefore=300*ppms;
+timeAfter=1200*ppms;
+binsize=2*ppms;
+plotit=1;
+
 for I=1:numel(Conditions)
-    ppms=fs/1000;
     spikes=cell2mat(Spikes).*1000.*ppms; %spikes back in samples
     name=Names{I};
-    timeBefore=300*ppms;timeAfter=1200*ppms;
-    plotit=1;binsize=200;
     triggers=Conditions{I}.Triggers;
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
     title(Conditions{I}.name)
@@ -172,20 +202,23 @@ save CrossCoeffData Spikes mergingPackages bads -append
 
 plotRaster = true; % No raster plot in the figures!!
 ppms=fs/1000;
-timeBefore=50*ppms;
-timeAfter=200*ppms;
-binsize=2.5*ppms;
+timeBefore=210*ppms;
+timeAfter=150*ppms;
+binsize=5*ppms;
 plotit=1;
 %close all
-for i=1:numel(Spikes)
+for i=35
     if ~ismember(i,bads)
-        for I=4 %pick out conditions to look at
+        for I=3:9 %pick out conditions to look at
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
-            triggers=Conditions{I}.Triggers;
+            triggers=Conditions{I}.Triggers(:,1);
             [sp h bins trig_mech trig_light f]=...
                 triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRaster);
-            title(['Cluster: ',num2str(i)])
+            title(['Cluster: ',sortedData{i,1},' #',num2str(i)])
+            fig = gcf;
+            ax = fig.Children;
+            linkaxes(ax,'x');
         end
         
     end
