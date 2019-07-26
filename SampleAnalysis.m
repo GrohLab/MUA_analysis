@@ -3,10 +3,7 @@ clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
 homedir='E:\Data\SuperiorColicullus\1600_1100_3500_MX';
-cd(homedir)
 fname = 'SC_190620_Emilio_Jesus_SC_1600_1100_3500_h5_MX';
-load([fname,'_all_channels.mat'])
-load([fname,'analysis.mat'],'Conditions','Triggers')
 load(fullfile(homedir,[fname,'_all_channels.mat']))
 load(fullfile(homedir,[fname,'analysis.mat']),'Conditions','Triggers')
 if ~iscell(Conditions)
