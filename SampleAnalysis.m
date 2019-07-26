@@ -7,6 +7,8 @@ cd(homedir)
 fname = 'SC_190620_Emilio_Jesus_SC_1600_1100_3500_h5_MX';
 load([fname,'_all_channels.mat'])
 load([fname,'analysis.mat'],'Conditions','Triggers')
+load(fullfile(homedir,[fname,'_all_channels.mat']))
+load(fullfile(homedir,[fname,'analysis.mat']),'Conditions','Triggers')
 if ~iscell(Conditions)
     auxCell = cell(numel(Conditions),1);
     for ccond = 1:numel(Conditions)
@@ -172,7 +174,7 @@ end
 
 %save cross-correlation so that we don't need to redo this constantly
 cd(homedir)
-save CrossCoeffData crscor goods bads
+save(fullfile(homedir,'CrossCoeffData.mat'),'crscor','goods','bads')
 
 %% Merge similar clusters
 % The marging packages indicate which clusters should be merged together
