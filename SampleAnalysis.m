@@ -14,6 +14,7 @@ if ~iscell(Conditions)
     Conditions = auxCell;
     clearvars auxCell
 end
+Ncond = numel(Conditions);
 if exist('Fs','var')
     fs = Fs;
 elseif exist('fs','var')
@@ -53,14 +54,18 @@ badsIdx = cellfun(@(x) x==3,sortedData(:,3));
 bads = find(badsIdx);
 silentUnits = cellfun(@numel,Spikes) < 10;
 bads = union(bads,find(silentUnits));
-goods=setdiff(1:numel(Spikes),bads);
+goods=setdiff(1:size(sortedData,1),bads);
 
-mech=Triggers.whisker;
-light=Triggers.light;
+mech = Triggers.whisker;
+try
+light = Triggers.light;
+catch
+    light = Triggers.laser;
+end
 Ns = length(mech);
 Nt = Ns/fs;
 
-spkLog = cell(size(sortedData,1),1);
+
 SubsFlag = any(cellfun(@all,cellfun(@eq,...
     cellfun(@minus,...
     cellfun(@round,Spikes,...
@@ -72,12 +77,12 @@ if SubsFlag
 else
     fact = fs;
 end
-% Creation of a cell array containing logic traces possibly for the DEx
+%% Creation of a cell array containing logic traces possibly for the DEx
+spkLog = zeros(size(sortedData,1),Ns);
 for cspk = 1:length(sortedData)
-    spkLog(cspk) = {DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns)};
+    spkLog(cspk,:) = DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns);
 end
-spkAllLog = cell2mat(spkLog);
-spkAllLog = any(spkAllLog,1);
+spkAllLog = sum(spkLog,1) ~= 0;
 
 %% look at inter-spike intervals as another check for pure light-evoke electrical artifacts
 close all
@@ -100,6 +105,7 @@ close all
 
 noresponse=[];
 bads=[bads noresponse];
+goods = setdiff(1:size(sortedData,1),bads);
 %bads=[]; %uncomment this to have bads empty
 %assumes that all spike trains are good
 
@@ -124,7 +130,11 @@ plotit=1;
 for I=1:numel(Conditions)
     spikes=cell2mat(Spikes).*1000.*ppms; %spikes back in samples
     name=Names{I};
-    triggers=Conditions{I}.Triggers;
+    if size(Conditions{I}.Triggers,2) > 1
+        triggers=Conditions{I}.Triggers(:,1);
+    else
+        triggers=Conditions{I}.Triggers;
+    end
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
     title(Conditions{I}.name)
 end
@@ -199,21 +209,32 @@ save CrossCoeffData Spikes mergingPackages bads -append
 
 %% looking at individual conditions and clusters for good clusters
 
-plotRaster = true; % No raster plot in the figures!!
-ppms=fs/1000;
+plotRasterFlag = true; % No raster plot in the figures!!
+plotit = true;
 timeBefore=210*ppms;
 timeAfter=150*ppms;
 binsize=5*ppms;
-plotit=1;
 %close all
 for i=35
+respUnits = false(size(goods,1),1);
+cgu = 1;
+
+
+for i=goods
     if ~ismember(i,bads)
         for I=3:9 %pick out conditions to look at
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
-            triggers=Conditions{I}.Triggers(:,1);
+            if size(Conditions{I}.Triggers,2) > 1
+                triggers=Conditions{I}.Triggers(:,1);
+            else
+                triggers=Conditions{I}.Triggers;
+            end
             [sp h bins trig_mech trig_light f]=...
-                triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRaster);
+                triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRasterFlag);
+            respUnits(cgu) = sum(cellfun(@isempty,sp))/numel(triggers) < 0.7;
+            
+            cgu = cgu + 1;
             title(['Cluster: ',sortedData{i,1},' #',num2str(i)])
             fig = gcf;
             ax = fig.Children;
@@ -226,22 +247,55 @@ end
 
 %% looking at possible artifacts
 
-
-ppms=fs/1000;
 timeBefore=150*ppms;
 timeAfter=150*ppms;
 plotit=1;
 binsize=2.5*ppms;
-plotRaster = true; % raster plot in the figures!!
-for i= 67 % insert cluster numbers here
-    for I=9 %pick out conditions to look at
+plotit = false;
+plotRasterFlag = false; % raster plot in the figures!!
+% 16 Gaussians, 3 parameters estimated, 7 conditions, 8 clusters
+Ngauss = 16;
+Ncond = 7;
+Nclus = length(wru);
+params = nan(Ngauss,3,Ncond,Nclus);
+cclu = 1;
+responseWindow = [0, 0.02]; % In seconds
+E = 1e-7;
+for i= wru % insert cluster numbers here
         spikes=(Spikes{i})*1000*ppms; %spikes back in samples
         name=Names{i};
-        triggers=Conditions{I}.Triggers;
+        if size(Conditions{I}.Triggers,2) > 1
+            triggers=Conditions{I}.Triggers(:,1);
+        else
+            triggers=Conditions{I}.Triggers;
+        end
         [sp h bins trig_mech trig_light f]=...
-            triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRaster);
-        title(['Cluster: ',num2str(i)])
+            triggeredAnalysisMUA(spikes,ppms,triggers,binsize,...
+            timeBefore,timeAfter,Conditions{I}.name,mech,light,...
+            plotit,plotRasterFlag);
+        spJoint = cell2mat(sp')/fs;
+        spJoint = spJoint(spJoint >= responseWindow(1) &...
+            spJoint <= responseWindow(2));
+        if ~isempty(spJoint) && numel(spJoint) > 2
+            paramsAux = emforgmm(spJoint, Ngauss, E, 0);
+            M = size(paramsAux,1);
+            params(1:M,:,I-2,cclu) = paramsAux;
+        else
+            fprintf(1,'No response in cluster %d, condition %s',...
+                i,Conditions{I}.name)
+            fprintf(1,' during %.3f and %.3f ms\n',responseWindow(1)*1e3,...
+                responseWindow(2)*1e3);
+        end
+        
+        if plotit
+            fig = gcf;
+            ax = fig.Children;
+            linkaxes(ax,'x');
+            
+            title(['Cluster: ',num2str(i)])
+        end
     end
+    cclu = cclu + 1;
 end
 %% Spikes backup.
 % Elimination of the 'bads' in the 'Spikes' variable.
@@ -258,7 +312,6 @@ Spikes = Spikes_BACKUP;
 
 
 % population histogram for later plotting, by condition
-ppms=fs/1e3;
 spikes=cell2mat(Spikes)*1000*ppms;
 plotit=1;
 binsize=50*ppms;
@@ -268,16 +321,29 @@ H=[];
 conds={};
 count=0;
 Trig_mech={};Trig_light={};
-for I=1:numel(Conditions)
+params = zeros(16,3,2);
+cc = 1;
+for I=[7,9]
     count=count+1;
     %spikes back in samples
     name=Names{I};
-    triggers=Conditions{I}.Triggers;
+    if size(Conditions{I}.Triggers,2) > 1
+        triggers=Conditions{I}.Triggers(:,1);
+    else
+        triggers=Conditions{I}.Triggers;
+    end
     conds{count}=Conditions{I}.name;
     [sp, h, bins, Trig_mech{count}, Trig_light{count}, f]=...
         triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore,...
         timeAfter,Conditions{I}.name,mech,light,plotit);
+    spJoint = cell2mat(sp')/fs;
+    spJoint = spJoint(spJoint >= 0 & spJoint < 0.02);
+    params(:,:,cc) = emforgmm(spJoint,16,1e-10,0);
+    cc = cc + 1;
     title(Conditions{I}.name)
+    fig = gcf;
+    ax = fig.Children;
+    linkaxes(ax,'x')
     %convert to rate in Hz
     h=h*(1000/binsize*ppms);
     H(count,:)=h;
@@ -289,11 +355,15 @@ t=[-timeBefore:timeAfter]/ppms;
 Sp={};
 % close all
 count=0;
-plotit=1;
+plotit=0;
 
 for I=1:numel(Conditions)  %by condition
     count=count+1;
-    triggers=Conditions{I}.Triggers;
+    if size(Conditions{I}.Triggers,2) > 1
+        triggers=Conditions{I}.Triggers(:,1);
+    else
+        triggers=Conditions{I}.Triggers;
+    end
     SPIKES={};
     for i=1:numel(Spikes)   %for each neuron
         if consIdxs(i)
@@ -356,7 +426,7 @@ for ii=1:Ncon
     for j=1:numel(SPIKESs{ii})        
         xs=SPIKESs{ii}{j}/ppms;
         ys=YSs{ii}{j};
-        plot(xs,ys,'.','color',colors(j,:),'markersize',10)
+        plot(xs,ys,'.','color',colors(j,:),'MarkerSize',10)
         hold on
     end
     lstResp = find(~cellfun(@isempty,YSs{3}),1,'last');
@@ -385,11 +455,11 @@ end
 yLimit = 5*ceil(5\(max(H(:)) * 1.05));
 % yLimit = 50;
 % load(fname,'chan21')
-chan21 = mech;
+chan21 = reshape(mech,1,length(mech));
 [~,cStack] =...
     getStacks(false(1,length(chan21)),...
     Conditions{1}.Triggers,'on',[-min(bins),max(bins)]*1e-3,...
-    fs,fs,[],chan21');
+    fs,fs,[],chan21);
 meanMech = mean(squeeze(cStack),2);
 for ii=1:Ncon
     
@@ -406,7 +476,7 @@ for ii=1:Ncon
     ylim([0 yLimit])
 end
 
-%
+%%
 t = 0:1/fs:(length(Trig_mech{1}(1,:))-1)/fs;
 t = 1000*(t - timeBefore/fs);
 subplot(6,Ncon,4*Ncon - 3)
