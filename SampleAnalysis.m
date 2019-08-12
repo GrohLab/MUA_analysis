@@ -215,14 +215,15 @@ timeBefore=210*ppms;
 timeAfter=150*ppms;
 binsize=5*ppms;
 %close all
-for i=35
+
 respUnits = false(size(goods,1),1);
-cgu = 1;
+cgu = 0;
 
 
 for i=goods
     if ~ismember(i,bads)
         for I=3:9 %pick out conditions to look at
+            cgu = cgu + 1;
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
             if size(Conditions{I}.Triggers,2) > 1
@@ -233,12 +234,16 @@ for i=goods
             [sp h bins trig_mech trig_light f]=...
                 triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRasterFlag);
             respUnits(cgu) = sum(cellfun(@isempty,sp))/numel(triggers) < 0.7;
-            
-            cgu = cgu + 1;
-            title(['Cluster: ',sortedData{i,1},' #',num2str(i)])
+            h(h==0) = 1e-10;
+            title(sprintf('Cluster: %s #%d R: %d E: %.3f',sortedData{i,1},i,respUnits(cgu),getEntropyFromPDF(h)))
             fig = gcf;
+            if ~respUnits(cgu)
+                close(fig)
+                continue
+            end
+            
             ax = fig.Children;
-            linkaxes(ax,'x');
+            linkaxes(ax,'x');            
         end
         
     end
@@ -249,7 +254,6 @@ end
 
 timeBefore=150*ppms;
 timeAfter=150*ppms;
-plotit=1;
 binsize=2.5*ppms;
 plotit = false;
 plotRasterFlag = false; % raster plot in the figures!!
@@ -262,38 +266,37 @@ cclu = 1;
 responseWindow = [0, 0.02]; % In seconds
 E = 1e-7;
 for i= wru % insert cluster numbers here
-        spikes=(Spikes{i})*1000*ppms; %spikes back in samples
-        name=Names{i};
-        if size(Conditions{I}.Triggers,2) > 1
-            triggers=Conditions{I}.Triggers(:,1);
-        else
-            triggers=Conditions{I}.Triggers;
-        end
-        [sp h bins trig_mech trig_light f]=...
-            triggeredAnalysisMUA(spikes,ppms,triggers,binsize,...
-            timeBefore,timeAfter,Conditions{I}.name,mech,light,...
-            plotit,plotRasterFlag);
-        spJoint = cell2mat(sp')/fs;
-        spJoint = spJoint(spJoint >= responseWindow(1) &...
-            spJoint <= responseWindow(2));
-        if ~isempty(spJoint) && numel(spJoint) > 2
-            paramsAux = emforgmm(spJoint, Ngauss, E, 0);
-            M = size(paramsAux,1);
-            params(1:M,:,I-2,cclu) = paramsAux;
-        else
-            fprintf(1,'No response in cluster %d, condition %s',...
-                i,Conditions{I}.name)
-            fprintf(1,' during %.3f and %.3f ms\n',responseWindow(1)*1e3,...
-                responseWindow(2)*1e3);
-        end
+    spikes=(Spikes{i})*1000*ppms; %spikes back in samples
+    name=Names{i};
+    if size(Conditions{I}.Triggers,2) > 1
+        triggers=Conditions{I}.Triggers(:,1);
+    else
+        triggers=Conditions{I}.Triggers;
+    end
+    [sp h bins trig_mech trig_light f]=...
+        triggeredAnalysisMUA(spikes,ppms,triggers,binsize,...
+        timeBefore,timeAfter,Conditions{I}.name,mech,light,...
+        plotit,plotRasterFlag);
+    spJoint = cell2mat(sp')/fs;
+    spJoint = spJoint(spJoint >= responseWindow(1) &...
+        spJoint <= responseWindow(2));
+    if ~isempty(spJoint) && numel(spJoint) > 2
+        paramsAux = emforgmm(spJoint, Ngauss, E, 0);
+        M = size(paramsAux,1);
+        params(1:M,:,I-2,cclu) = paramsAux;
+    else
+        fprintf(1,'No response in cluster %d, condition %s',...
+            i,Conditions{I}.name)
+        fprintf(1,' during %.3f and %.3f ms\n',responseWindow(1)*1e3,...
+            responseWindow(2)*1e3);
+    end
+    
+    if plotit
+        fig = gcf;
+        ax = fig.Children;
+        linkaxes(ax,'x');
         
-        if plotit
-            fig = gcf;
-            ax = fig.Children;
-            linkaxes(ax,'x');
-            
-            title(['Cluster: ',num2str(i)])
-        end
+        title(['Cluster: ',num2str(i)])
     end
     cclu = cclu + 1;
 end
