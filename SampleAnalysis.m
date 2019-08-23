@@ -77,10 +77,19 @@ if SubsFlag
 else
     fact = fs;
 end
+badsIdx = StepWaveform.subs2idx(bads,size(sortedData,1));
+
 %% Creation of a cell array containing logic traces possibly for the DEx
-spkLog = zeros(size(sortedData,1),Ns);
-for cspk = 1:length(sortedData)
-    spkLog(cspk,:) = DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns);
+spkLog = zeros(size(sortedData,1) - sum(badsIdx),Ns);
+lspk = 1;
+cspk = 1;
+while cspk <= size(Spikes,2) || lspk <= size(spkLog,1)
+    if ~ismember(bads,cspk)
+        spkLog(lspk,:) =...
+            DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns);
+        lspk = lspk + 1;
+    end
+    cspk = cspk + 1;
 end
 spkAllLog = sum(spkLog,1) ~= 0;
 
@@ -136,6 +145,9 @@ for I=1:numel(Conditions)
         triggers=Conditions{I}.Triggers;
     end
     [sp h bins trig_mech trig_light f]=triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit);
+    fig = gcf;
+    ax = fig.Children;
+    linkaxes(ax,'x');
     title(Conditions{I}.name)
 end
 %% Cross-correlation or relationship between clusters
@@ -211,15 +223,16 @@ save CrossCoeffData Spikes mergingPackages bads -append
 
 plotRasterFlag = true; % No raster plot in the figures!!
 plotit = true;
-timeBefore=210*ppms;
-timeAfter=150*ppms;
-binsize=5*ppms;
+timeBefore=250*ppms;
+timeAfter=350*ppms;
+binsize=2*ppms;
 %close all
-
-respUnits = false(size(goods,1),1);
+compTime = 0.11;
+preTrigWindow = [-compTime,0] * 1e3;
+posTrigWindow = [0, compTime] * 1e3;
+inactivUnits = zeros(size(goods,1),1,'single');
+respUnits = zeros(size(goods,1),1,'single');
 cgu = 0;
-
-
 for i=goods
     if ~ismember(i,bads)
         for I=3:9 %pick out conditions to look at
@@ -231,18 +244,34 @@ for i=goods
             else
                 triggers=Conditions{I}.Triggers;
             end
+            Na = length(triggers);
             [sp h bins trig_mech trig_light f]=...
                 triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore, timeAfter,Conditions{I}.name,mech,light,plotit,plotRasterFlag);
-            respUnits(cgu) = sum(cellfun(@isempty,sp))/numel(triggers) < 0.7;
-            h(h==0) = 1e-10;
-            title(sprintf('Cluster: %s #%d R: %d E: %.3f',sortedData{i,1},i,respUnits(cgu),getEntropyFromPDF(h)))
+            inactivUnits(cgu) = sum(cellfun(@isempty,sp))/numel(triggers);
+            
+            Nts = sum(cellfun(@numel,sp));
+            spikeDensity = Nts/Na;
             fig = gcf;
-            if ~respUnits(cgu)
+            if inactivUnits(cgu) > 0.7 || spikeDensity < 0.3
                 close(fig)
+                % Cluster number, cluster ID, spike density, inactive
+                % trials
+                fprintf(1,'%d ID:%s SD:%.2f AT:%.2f%%\n',i,sortedData{i,1},...
+                    spikeDensity,(1-inactivUnits(cgu))*100)
                 continue
             end
-            
+            h(h==0) = min(h(h~=0))*1e-6;
+            preTrig = h(bins > preTrigWindow(1) & bins < preTrigWindow(2))*...
+                Na;
+            posTrig = h(bins >= posTrigWindow(1) & bins < posTrigWindow(2))*...
+                Na;
+            respUnits(i) = sum(preTrig)/numel(preTrig) -...
+                sum(posTrig)/numel(posTrig);
+            title(sprintf('Cluster: %s #%d A: %.2f E: %.3f R: %.3f',...
+                sortedData{i,1},i,(1-inactivUnits(cgu))*100,getEntropyFromPDF(h),...
+                respUnits(i)))
             ax = fig.Children;
+            ax(2).Title.String = sprintf('%.2f av. spikes per trial',spikeDensity);
             linkaxes(ax,'x');            
         end
         
@@ -251,52 +280,54 @@ end
 
 
 %% looking at possible artifacts
-
-timeBefore=150*ppms;
-timeAfter=150*ppms;
-binsize=2.5*ppms;
-plotit = false;
-plotRasterFlag = false; % raster plot in the figures!!
+wru = [1, 6, 13, 15, 16, 17, 21, 38, 40, 43, 45];
+timeBefore=250*ppms;
+timeAfter=350*ppms;
+binsize=2*ppms;
+plotit = true;
+plotRasterFlag = true; % raster plot in the figures!!
 % 16 Gaussians, 3 parameters estimated, 7 conditions, 8 clusters
 Ngauss = 16;
 Ncond = 7;
 Nclus = length(wru);
-params = nan(Ngauss,3,Ncond,Nclus);
+paramsCond = nan(Ngauss,3,Ncond,Nclus);
 cclu = 1;
-responseWindow = [0, 0.02]; % In seconds
+responseWindow = [0, 0.25]; % In seconds
+xdom = responseWindow(1):1/fs:responseWindow(2);
 E = 1e-7;
 for i= wru % insert cluster numbers here
-    spikes=(Spikes{i})*1000*ppms; %spikes back in samples
-    name=Names{i};
-    if size(Conditions{I}.Triggers,2) > 1
-        triggers=Conditions{I}.Triggers(:,1);
-    else
-        triggers=Conditions{I}.Triggers;
-    end
-    [sp h bins trig_mech trig_light f]=...
-        triggeredAnalysisMUA(spikes,ppms,triggers,binsize,...
-        timeBefore,timeAfter,Conditions{I}.name,mech,light,...
-        plotit,plotRasterFlag);
-    spJoint = cell2mat(sp')/fs;
-    spJoint = spJoint(spJoint >= responseWindow(1) &...
-        spJoint <= responseWindow(2));
-    if ~isempty(spJoint) && numel(spJoint) > 2
-        paramsAux = emforgmm(spJoint, Ngauss, E, 0);
-        M = size(paramsAux,1);
-        params(1:M,:,I-2,cclu) = paramsAux;
-    else
-        fprintf(1,'No response in cluster %d, condition %s',...
-            i,Conditions{I}.name)
-        fprintf(1,' during %.3f and %.3f ms\n',responseWindow(1)*1e3,...
-            responseWindow(2)*1e3);
-    end
-    
-    if plotit
-        fig = gcf;
-        ax = fig.Children;
-        linkaxes(ax,'x');
-        
-        title(['Cluster: ',num2str(i)])
+    for I = 3:9
+        spikes=(Spikes{i})*1000*ppms; %spikes back in samples
+        name=Names{i};
+        if size(Conditions{I}.Triggers,2) > 1
+            triggers=Conditions{I}.Triggers(:,1);
+        else
+            triggers=Conditions{I}.Triggers;
+        end
+        [sp h bins trig_mech trig_light f]=...
+            triggeredAnalysisMUA(spikes,ppms,triggers,binsize,...
+            timeBefore,timeAfter,Conditions{I}.name,mech,light,...
+            plotit,plotRasterFlag);
+        spJoint = cell2mat(sp')/fs;
+        spJoint = spJoint(spJoint >= responseWindow(1) &...
+            spJoint <= responseWindow(2));
+        if ~isempty(spJoint) && numel(spJoint) > 2
+            paramsAux = emforgmm(spJoint, Ngauss, E, false);
+            M = size(paramsAux,1);
+            paramsCond(1:M,:,I-2,cclu) = paramsAux;
+        else
+            fprintf(1,'No response in cluster %d, condition %s',...
+                i,Conditions{I}.name)
+            fprintf(1,' during %.3f and %.3f ms\n',responseWindow(1)*1e3,...
+                responseWindow(2)*1e3);
+        end
+        if plotit
+            fig = gcf;
+            ax = fig.Children;
+            linkaxes(ax,'x');
+            
+            title(['Clus: ',num2str(i),' Cond: ',Conditions{I}.name])
+        end
     end
     cclu = cclu + 1;
 end
@@ -307,6 +338,7 @@ end
 % will lose good units!!
 Spikes_BACKUP = Spikes;
 Spikes(bads) = [];
+consIdxs(bads) = [];
 %% Restore Spikes
 % Use this section to restore the 'bads' labelled units into the 'Spikes'
 % variable
@@ -316,17 +348,22 @@ Spikes = Spikes_BACKUP;
 
 % population histogram for later plotting, by condition
 spikes=cell2mat(Spikes)*1000*ppms;
-plotit=1;
-binsize=50*ppms;
-timeBefore=500*ppms;
-timeAfter=1200*ppms;
+plotit=true;
+timeBefore=250*ppms;
+timeAfter=350*ppms;
+binsize=2*ppms;
 H=[];
 conds={};
 count=0;
 Trig_mech={};Trig_light={};
-params = zeros(16,3,2);
+Ngauss = 16;
+Ncond = 7;
+Nclus = length(wru);
+paramsCond = zeros(16,3,2);
+
 cc = 1;
-for I=[7,9]
+responseWindow = [0, 0.1]; % In seconds
+for I=3:numel(Conditions)
     count=count+1;
     %spikes back in samples
     name=Names{I};
@@ -340,8 +377,9 @@ for I=[7,9]
         triggeredAnalysisMUA(spikes,ppms,triggers,binsize,timeBefore,...
         timeAfter,Conditions{I}.name,mech,light,plotit);
     spJoint = cell2mat(sp')/fs;
-    spJoint = spJoint(spJoint >= 0 & spJoint < 0.02);
-    params(:,:,cc) = emforgmm(spJoint,16,1e-10,0);
+    spJoint = spJoint(spJoint >= responseWindow(1) &...
+        spJoint < responseWindow(2));
+    paramsCond(:,:,cc) = emforgmm(spJoint,16,1e-10,0);
     cc = cc + 1;
     title(Conditions{I}.name)
     fig = gcf;
