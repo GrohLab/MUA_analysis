@@ -29,6 +29,7 @@ else
     strFS = inputdlg('Unknown sampling frequency. Please provide it:'...
         ,'Sampling Frequency warning');
     fs = str2double(strFS);
+    save(fullfile(homedir,[fname,'_sampling_frequency.mat']),'fs')
 end
 ppms=fs/1000;
 
@@ -39,8 +40,9 @@ ppms=fs/1000;
 % section.
 
 %population PSTHs
-Spikes={};
-Names={};
+Ntcl = size(sortedData,1);
+Spikes=cell(Ntcl,1);
+Names=cell(Ntcl,1);
 
 for i=1:size(sortedData,1)
     if iscolumn(sortedData{i,2})
@@ -52,46 +54,56 @@ for i=1:size(sortedData,1)
 end
 badsIdx = cellfun(@(x) x==3,sortedData(:,3));
 bads = find(badsIdx);
-silentUnits = cellfun(@numel,Spikes) < 10;
+silentUnits = cellfun(@numel,Spikes) < 100;
 bads = union(bads,find(silentUnits));
 goods=setdiff(1:size(sortedData,1),bads);
 
 mech = Triggers.whisker;
+mObj = StepWaveform(mech,fs);
+mSubs = mObj.subTriggers;
+mech = mObj.subs2idx(mSubs,mObj.NSamples);
 try
-light = Triggers.light;
+    light = Triggers.light;
 catch
     light = Triggers.laser;
 end
+lObj = StepWaveform(light,fs);
+lSubs = lObj.subTriggers;
+light = lObj.subs2idx(lSubs,lObj.NSamples);
+continuousSignals = {mech;light};
+
 Ns = length(mech);
 Nt = Ns/fs;
-
-
-SubsFlag = any(cellfun(@all,cellfun(@eq,...
-    cellfun(@minus,...
-    cellfun(@round,Spikes,...
-    'UniformOutput',false),Spikes,...
-    'UniformOutput',false),repmat({0},1,numel(Spikes)),...
-    'UniformOutput',false)));
-if SubsFlag
-    fact = 1;
-else
-    fact = fs;
-end
 badsIdx = StepWaveform.subs2idx(bads,size(sortedData,1));
 
-%% Creation of a cell array containing logic traces possibly for the DEx
-spkLog = zeros(size(sortedData,1) - sum(badsIdx),Ns);
-lspk = 1;
-cspk = 1;
-while cspk <= size(Spikes,2) || lspk <= size(spkLog,1)
-    if ~ismember(bads,cspk)
-        spkLog(lspk,:) =...
-            DiscreteWaveform.subs2idx(round(Spikes{cspk}*fact),Ns);
-        lspk = lspk + 1;
+%% DATA EXPLORER SECTION
+% Viewing window and bin size both in seconds
+timeLapse = [0.25, 0.35];
+binSz = 0.002;
+Ngc = numel(goods);
+% Logical trace for the first considered cluster and column sample
+% subscripts for the rest.
+spkLog = StepWaveform.subs2idx(round(sortedData{1,2}*fs),Ns);
+spkSubs = cellfun(@(x) round(x.*fs),sortedData(goods(2:end),2),'UniformOutput',false);
+fig = gobjects(Ncond,1);
+for conSel = 1:Ncond
+    if contains(Conditions{conSel}.name,'all','IgnoreCase',true)
+        continue
     end
-    cspk = cspk + 1;
+    [dst, cst] = getStacks(spkLog,Conditions{conSel}.Triggers,'on',timeLapse,fs,...
+        fs,spkSubs,continuousSignals);
+    stims = mean(cst,3);
+    [Ne, Nt, Na] = size(dst);
+    [PSTH, trig, sweeps] = getPSTH(dst,timeLapse,false(Na,1),binSz,fs);
+    IDe = [Conditions{conSel}.name;sortedData(goods,1)];
+    fig(conSel) = plotClusterReactivity(PSTH,trig,sweeps,timeLapse,binSz,...
+        IDe,sprintf('S1 CTX 2.8 mm\n%s',...
+        Conditions{conSel}.name),stims,{'Piezo','Laser'});
+    configureFigureToPDF(fig(conSel))
+    print(fig(conSel),fullfile(homedir,sprintf('S1 CTX 2.8 mm %s.pdf',...
+        Conditions{conSel}.name)),'-dpdf','-fillpage')
 end
-spkAllLog = sum(spkLog,1) ~= 0;
+
 
 %% look at inter-spike intervals as another check for pure light-evoke electrical artifacts
 close all
