@@ -2,8 +2,8 @@
 clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
-homedir='E:\Data\SuperiorColicullus\1600_1100_3500_MX';
-fname = 'SC_190620_Emilio_Jesus_SC_1600_1100_3500_h5_MX';
+homedir='E:\Data\SuperiorColicullus\M2_190710_SC_Emilio\2800_1310_3700_H5\S1_2mW';
+fname = '1233_S1_2mW';
 load(fullfile(homedir,[fname,'_all_channels.mat']))
 load(fullfile(homedir,[fname,'analysis.mat']),'Conditions','Triggers')
 if ~iscell(Conditions)
@@ -143,8 +143,8 @@ goods = setdiff(1:size(sortedData,1),bads);
 %% looking at collected data
 
 close all
-timeBefore=300*ppms;
-timeAfter=1200*ppms;
+timeBefore=250*ppms;
+timeAfter=350*ppms;
 binsize=2*ppms;
 plotit=1;
 
