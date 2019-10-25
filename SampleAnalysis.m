@@ -2,8 +2,9 @@
 clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
-homedir='E:\Data\SuperiorColicullus\M2_190710_SC_Emilio\2800_1310_3700_H5\S1_2mW';
-fname = '1233_S1_2mW';
+homedir='E:\Data\SuperiorColicullus\M2_190710_SC_Emilio\3790_1200_2780_H5\BF_3mW';
+fname = '1600_BF_3mW';
+expName = 'S1 CTX 3.79 mm';
 load(fullfile(homedir,[fname,'_all_channels.mat']))
 load(fullfile(homedir,[fname,'analysis.mat']),'Conditions','Triggers')
 if ~iscell(Conditions)
@@ -44,20 +45,6 @@ Ntcl = size(sortedData,1);
 Spikes=cell(Ntcl,1);
 Names=cell(Ntcl,1);
 
-for i=1:size(sortedData,1)
-    if iscolumn(sortedData{i,2})
-        Spikes{i}=cell2mat(sortedData(i,2))';
-    else
-        Spikes{i}=cell2mat(sortedData(i,2));
-    end
-    Names{i}=sortedData(i,1);
-end
-badsIdx = cellfun(@(x) x==3,sortedData(:,3));
-bads = find(badsIdx);
-silentUnits = cellfun(@numel,Spikes) < 100;
-bads = union(bads,find(silentUnits));
-goods=setdiff(1:size(sortedData,1),bads);
-
 mech = Triggers.whisker;
 mObj = StepWaveform(mech,fs);
 mSubs = mObj.subTriggers;
@@ -71,9 +58,24 @@ lObj = StepWaveform(light,fs);
 lSubs = lObj.subTriggers;
 light = lObj.subs2idx(lSubs,lObj.NSamples);
 continuousSignals = {mech;light};
-
 Ns = length(mech);
 Nt = Ns/fs;
+
+for i=1:size(sortedData,1)
+    if iscolumn(sortedData{i,2})
+        Spikes{i}=cell2mat(sortedData(i,2))';
+    else
+        Spikes{i}=cell2mat(sortedData(i,2));
+    end
+    Names{i}=sortedData(i,1);
+end
+badsIdx = cellfun(@(x) x==3,sortedData(:,3));
+bads = find(badsIdx);
+totSpkCount = cellfun(@numel,sortedData(:,2));
+silentUnits = totSpkCount/Nt < 0.1;
+bads = union(bads,find(silentUnits));
+goods=setdiff(1:size(sortedData,1),bads);
+
 badsIdx = StepWaveform.subs2idx(bads,size(sortedData,1));
 
 %% DATA EXPLORER SECTION
@@ -83,7 +85,7 @@ binSz = 0.002;
 Ngc = numel(goods);
 % Logical trace for the first considered cluster and column sample
 % subscripts for the rest.
-spkLog = StepWaveform.subs2idx(round(sortedData{1,2}*fs),Ns);
+spkLog = StepWaveform.subs2idx(round(sortedData{goods(1),2}*fs),Ns);
 spkSubs = cellfun(@(x) round(x.*fs),sortedData(goods(2:end),2),'UniformOutput',false);
 fig = gobjects(Ncond,1);
 for conSel = 1:Ncond
@@ -97,11 +99,11 @@ for conSel = 1:Ncond
     [PSTH, trig, sweeps] = getPSTH(dst,timeLapse,false(Na,1),binSz,fs);
     IDe = [Conditions{conSel}.name;sortedData(goods,1)];
     fig(conSel) = plotClusterReactivity(PSTH,trig,sweeps,timeLapse,binSz,...
-        IDe,sprintf('S1 CTX 2.8 mm\n%s',...
-        Conditions{conSel}.name),stims,{'Piezo','Laser'});
-    configureFigureToPDF(fig(conSel))
-    print(fig(conSel),fullfile(homedir,sprintf('S1 CTX 2.8 mm %s.pdf',...
-        Conditions{conSel}.name)),'-dpdf','-fillpage')
+        IDe,sprintf('%s\n%s',...
+        expName, Conditions{conSel}.name),stims,{'Piezo','Laser'});
+    configureFigureToPDF(fig(conSel));
+    print(fig(conSel),fullfile(homedir,sprintf('%s %s.pdf',...
+        expName, Conditions{conSel}.name)),'-dpdf','-fillpage')
 end
 
 
