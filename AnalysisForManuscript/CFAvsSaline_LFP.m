@@ -4,32 +4,31 @@
 
 
 clear all
-files ={'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M107_C2\M107_C2_Mech+5mW_UMS_analysis.mat'...
-    'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M110_C4\M110_C4_Mech+6mW_UMS_analysis.mat'...
-    'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M110_C5\M110_C5_Mech+6mW_UMS_analysis.mat'...
-    'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M113_C4\M113_C4_UMS_analysis.mat' ... %good?
-    'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M113_C6\M113_C6_Mech+L6_UMS_analysis.mat'...
-    'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M133_C2\M113_C2_Mech+L6alone edited_UMS_analysis.mat'...
-    'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\L6 alone\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'...
-    %    'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'...  %this is a repeat?
+%cfa
 
-    Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\09_11_2018\M3_C1   M3_C1_L6_Mechanalysis.mat
-  %  Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\09_11_2018\M3_C2  %no analysis!
-  
-  Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C1  M59_C1_HL +Terminal sti_1mWanalysis.mat
-  Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C2\C2A M59_C2_HL +Terminal sti_1mWanalysis.mat
-  Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C2\C2B M59_C2_HL +Terminal sti_2mWanalysis.mat
-  
-    'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\M7_C3\M7_C3_Mech_05mWanalysis.mat'...
     
-    
-    'Z:\Sailaja\Manuscript\Data\16 channel\standard 16 channel\probe\M137_C4\M137_C4_Mech+L6 05mWanalysis.mat'}
+% I am confused about the silicon probe recordings
+
+
+
+   % 'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\L6 alone\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'}
+%     % 'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'...  %this is a repeat?
+% 
+%     Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\09_11_2018\M3_C1   M3_C1_L6_Mechanalysis.mat
+%   %  Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\09_11_2018\M3_C2  %no analysis!
+%   
+%   Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C1  M59_C1_HL +Terminal sti_1mWanalysis.mat
+%   Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C2\C2A M59_C2_HL +Terminal sti_1mWanalysis.mat
+%   Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\12_3_2019\M59_C2\C2B M59_C2_HL +Terminal sti_2mWanalysis.mat
+%   
+%     'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\M7_C3\M7_C3_Mech_05mWanalysis.mat'...
+ %'Z:\Sailaja\Manuscript\Data\16 channel\standard 16 channel\probe\M137_C4\M137_C4_Mech+L6 05mWanalysis.mat'}
 
 %% ROSS FILES HERE
 
 %%
 
-for I=9:numel(files)
+for I=1:numel(files)
     close all
     clear params EEG spikeFindingData Conditions Triggers
     load(files{I},'EEG','spikeFindingData','Conditions','Triggers')
@@ -174,9 +173,70 @@ for I=9:numel(files)
     cd(FILEPATH)
     save ChronuxResults 'spectrogram' 'spectra' Conditions condSpect NAME FILEPATH
 
-    
 end
-  
+
+
+
+%%      population analysis, load it all in
+Ss={};files=saline;
+for I=1:numel(saline)
+    [FILEPATH,NAME,EXT] = fileparts(files{I}); 
+    cd(FILEPATH)
+   Ss{I}=load('ChronuxResults')
+end
+
+
+Scfa={};files=cfa;
+for I=1:numel(cfa)
+    [FILEPATH,NAME,EXT] = fileparts(files{I}); 
+    cd(FILEPATH)
+   Scfa{I}=load('ChronuxResults')
+end
+
+
+%% figure  spontaneous power spectra
+figure
+subplot(2,2,2)
+S=cellfun(@(x) x.spectra,Scfa,'UniformOutput', false);
+Sspont=cell2mat(cellfun(@(x) x.Sspont,S,'UniformOutput', false));
+f=cellfun(@(x) x.spectra,Scfa,'UniformOutput', false);
+f=cell2mat(cellfun(@(x) x.f',f,'UniformOutput', false));
+
+plot(f,10*log10(Sspont),'linewidth',2); xlabel('Frequency Hz'); ylabel('Spectrum');
+legend(cfa)
+subplot(2,2,1)
+S=cellfun(@(x) x.spectra,Ss,'UniformOutput', false);
+Sspont=cell2mat(cellfun(@(x) x.Sspont,S,'UniformOutput', false));
+f=cellfun(@(x) x.spectra,Ss,'UniformOutput', false);
+f=cell2mat(cellfun(@(x) x.f',f,'UniformOutput', false));
+plot(f,10*log10(Sspont),'linewidth',2); xlabel('Frequency Hz'); ylabel('Spectrum');
+legend(saline)
+
+subplot(2,2,3)
+S=cellfun(@(x) x.spectra,Scfa,'UniformOutput', false);
+Sspont=cell2mat(cellfun(@(x) x.Sspont,S,'UniformOutput', false));
+f=cellfun(@(x) x.spectra,Scfa,'UniformOutput', false);
+f=cell2mat(cellfun(@(x) x.f',f,'UniformOutput', false));
+plot(f,10*log10(Sspont),'r','linewidth',2); xlabel('Frequency Hz'); ylabel('Spectrum');
+S=cellfun(@(x) x.spectra,Ss,'UniformOutput', false);
+Sspont=cell2mat(cellfun(@(x) x.Sspont,S,'UniformOutput', false));
+f=cellfun(@(x) x.spectra,Ss,'UniformOutput', false);
+f=cell2mat(cellfun(@(x) x.f',f,'UniformOutput', false));
+hold on
+plot(f,10*log10(Sspont),'k'); xlabel('Frequency Hz'); ylabel('Spectrum');
+
+
+
+%% loop to save bispikes
+
+
+%%  this 
+
+
+
+
+
+
 %% SCRAP
 LFP=resample(double(lfp),1,round(ppms)); LFP=LFP(1:400000);
 [imf,residual,info] = emd(LFP,'Interpolation','pchip');
