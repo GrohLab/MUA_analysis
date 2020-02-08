@@ -1,24 +1,50 @@
  
 %% light driven units in cortex
-
+clear all
 %at the moment, this has light artifacts Feb
 datadir='Z:\Ross\Experiments\17.12.19\HL Cortex'
 cd(datadir)
-clear all
+
 spikefile='M167_HL_Cortex_all_channels.mat'
 load(spikefile);
 load M167_HL_Cortex_sampling_frequency.mat  
 load M167_HL_Cortexanalysis Conditions Triggers
 
-
 stimCond=Conditions([1:4]);
 ppms=fs/1000;
-%% get single laser pulses
+
+%%
+clear all
+file='Z:\Ross\Experiments\17.12.19\Forepaw VPL\M167_L6-Stim10mW_Mech_CFA_ForePaw_Conc'
+[FILEPATH,NAME,EXT] = fileparts(file);
+cd(FILEPATH)
+spikefile=[NAME '_all_channels.mat'];
+load(spikefile);
+load([NAME 'analysis.mat'],'Conditions','Triggers')
+load([NAME '_sampling_frequency.mat'])
+
+
+%%
+clear all
+file='Z:\Ross\Experiments\10mW_Saline_VPL\M168_10mW_MechStim_Saline_VPL'
+[FILEPATH,NAME,EXT] = fileparts(file);
+cd(FILEPATH)
+spikefile=[NAME '_all_channels.mat'];
+load(spikefile);
+load([NAME 'analysis.mat'],'Conditions','Triggers')
+load([NAME '_sampling_frequency.mat'])
+
+%%
+stimCond=Conditions([1:4]);
+ppms=fs/1000;
+
+% get single laser pulses
 thislaser=Triggers.laser;
 thislaser=thislaser-min(thislaser);thislaser=thislaser/max(thislaser);
 thislaser(thislaser>.5)=1;
 thislaser(thislaser~=1)=0;
-laser=thislaser;
+laser=thislaser; %every single laser pulse;
+lt=find(diff(thislaser)==1); %triggers for all lasers
 
 whisker=Triggers.whisker;
 whisker=whisker-min(whisker); whisker=whisker/max(whisker);
@@ -36,21 +62,19 @@ for i=1:2
 end
 
 whisker(whisker~=1)=0;
-%thislaser=thislaser-whisker;
+thislaser=thislaser-whisker;
 thislaser(thislaser~=1)=0;
-lt=find(diff(thislaser)==1); %triggers for all lasers
+laser_control=find(diff(thislaser)==1); %triggers for all lasers
 
 figure
-plot(lt/10,Triggers.laser(lt),'o')
+plot(lt/10,laser(lt),'o')
 hold on
-plot(Triggers.laser(1:10:end))
+plot(laser(1:10:end))
+
+save laserinfo lt laser_control
 
 
-j=numel(stimCond)+1;
-stimCond(j).name='laser ind.'
-stimCond(j).Triggers=[lt lt+round(ppms*10)];
-
-%% make it simple and find everything 
+%% organized spike trains
 % well isolated clusters, only isolated
 goodsInd = cellfun(@(x) x==1,sortedData(:,3));multiInd=[];
 multiInd = cellfun(@(x) x==2,sortedData(:,3));
@@ -59,12 +83,9 @@ Ns = min(structfun(@numel,Triggers));
 % Total duration of the recording
 Nt = Ns/fs;  %seconds
 clusters=sortedData(goods,2);ids=sortedData(goods,1);
-
 biSpikes=spalloc(floor(Nt*1000*ppms),numel(goods),numel(cell2mat(clusters)));% preallocate sparse matrix to save space
 % ms x num clusters
 T=size(biSpikes,1); %recording length in ms
-
-
 
 
 %stimCond(end-1).Triggers=stimCond(end-1).Triggers(1:5:end-1,:)
@@ -76,7 +97,95 @@ for j=1:numel(goods)
 end
 
 
-%%  for all condtions
+%% for laser trials only
+triggers={lt laser_control}
+maxTrials=max(cellfun(@(x) size(x,1),triggers));
+%in ms because of division before, though triggered seg takes samples
+timeBefore=(-5*ppms);
+timeAfter=round(35*ppms);
+trialLength=-timeBefore+timeAfter+1;
+
+%preallocate omg could be huge!
+% firingRates: N x S x T x maxTrialNum
+%firingRates=zeros(numel(clusters),numel(triggers),round(trialLength),maxTrials);
+relativeSpikeTimes=struct([]);
+catSp=cell(numel(clusters),numel(triggers));
+for n =1:numel(clusters)
+    for s=1:numel(triggers)
+        trigs=round(triggers{s}/fs*1000*ppms); %triggers in ms*ppms
+        X=TriggeredSegments(biSpikes(:,n),trigs,timeBefore,timeAfter);
+        %firingRates(n,s,1:size(X,1),1:size(X,2))=(shiftdim(X,-2));  %some fuckery to deal with 4d array
+        sp={};tnum={};
+        for ii=1:size(X,2),sp{ii}=find(X(:,ii))+timeBefore; tnum{ii}=ones(size(sp{ii}))*ii;end
+        relativeSpikeTimes(n,s).sp=sp;
+        relativeSpikeTimes(n,s).tnum=tnum;
+        relativeSpikeTimes(n,s).clustername=ids(n);
+        relativeSpikeTimes(n,s).condition='laser';
+        catSp{n,s}=cell2mat(sp');
+    end
+end
+%%   histograms
+thisCond=2;
+
+close all
+binsize=.5*ppms;
+bins=[timeBefore:binsize:timeAfter];
+H=cellfun(@(c) hist(c/ppms,bins/ppms),catSp,'UniformOutput',0);
+Hcond=cell2mat(H(:,thisCond));
+figure
+%Hcond(Hcond==0)=nan;
+subplot(3,1,1:2)
+pcolor(bins/ppms,1:numel(clusters),Hcond)
+shading flat
+colormap fire
+
+X=mean(TriggeredSegments(laser,triggers{thisCond},timeBefore,timeAfter)');
+tx=[timeBefore:timeAfter]'
+subplot(3,1,3)
+plot(tx/ppms,X)
+axis tight
+
+laserMed=cell2mat(cellfun(@median,catSp(:,thisCond),'UniformOutput',0))/ppms;
+figure
+histogram(laserMed,1000)
+plot(bins/ppms,Hcond)
+
+xlabel ms
+ylabel(['counts/bin binsize=' num2str(binsize/ppms) ' ms'])
+ti=title(['Possible light artifacts ' spikefile],'Interpreter','none')
+savefig('LightArtifactsHist')
+
+
+maxs=[];indices=[];
+for i=1:size(Hcond,1)
+    m=Hcond(i,:);maxs(i)=max(m);
+    indices(i)=find(m==maxs(i),1);
+end
+
+
+figure
+plot(bins(indices)/ppms,maxs,'o')
+text(bins(indices)/ppms,maxs,ids)
+hold on;
+plot(tx/ppms,-X*max(max(Hcond)),'linewidth',3)
+axis tight
+xlabel ms
+ylabel(['counts/bin binsize=' num2str(binsize/ppms) ' ms'])
+ti=title(['Possible light artifacts ' spikefile],'Interpreter','none')
+savefig('LightArtifacts')
+
+
+%organize 
+%%
+% rasters
+figure
+lastlevel=0;
+for n=1:numel(clusters)
+    if mod(n,2)==0, col='b';else col='k';end
+    [R lastlevel]=manyRasters(relativeSpikeTimes(n,3).sp,col,.9,ppms,0+lastlevel);
+end
+
+%% for all conditions
 maxTrials=max(cellfun(@(x) size(x,1),{stimCond.Triggers}));
 %in ms because of division before, though triggered seg takes samples
 timeBefore=(-5*ppms);
@@ -103,6 +212,7 @@ for n =1:numel(clusters)
     end
 end
 %%   histograms
+close all
 binsize=.05*ppms;
 bins=[timeBefore:binsize:timeAfter];
 H=cellfun(@(c) hist(c/ppms,bins/ppms),catSp,'UniformOutput',0);
@@ -157,4 +267,3 @@ for n=1:numel(clusters)
     if mod(n,2)==0, col='b';else col='k';end
     [R lastlevel]=manyRasters(relativeSpikeTimes(n,3).sp,col,.9,ppms,0+lastlevel);
 end
-
