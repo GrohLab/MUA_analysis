@@ -28,18 +28,22 @@ files ={'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M107_C2\M107_C2_Mech+5mW_UMS_
 %% ROSS FILES HERE
 
 % Saline VPL
-    % 'D:\Ross\18.12.19' - 10mW L6 With LFP
-    % 'D:\Ross\13.11.19' - 3.5mW L6 (Don't think LFP)
+    % 'D:\Ross\18.12.19' - 10mW L6 With LFP             Counts by condition
+        % on SDS
+    % 'D:\Ross\13.11.19' - 3.5mW L6 (Don't think LFP)   Counts by condition
+        % on SDS
     % 'D:\Ross\4.02.20' 2.5mW - Kilosorting but should be curated by end of 08.02.20
                 
          
 % CFA VPL
-    % 'D:\Ross\17.12.19\Forepaw VPL' With LFP
+    % 'D:\Ross\17.12.19\Forepaw VPL' With LFP       Counts by condition
+        % on SDS
     % 'D:\Ross\30.01.20' With LFP
     
 % CFA Cortex
     
-    % 'D:\Ross\17.12.19\Hind Limb Cortex' 
+    % 'D:\Ross\17.12.19\Hind Limb Cortex'   Counts by condition
+        % on SDS
         
 % DREADD Expts
 
