@@ -17,4 +17,6 @@ saline={'Z:\Sailaja\Manuscript\Data\Juxtasomal\Saline\M104_C2\M104_C2_5mW_UMS_an
 
 
 
-% mua channels
+% mua files
+
+file={'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\Saline\M7_C3\M7_C3_Mech_05mWanalysis.mat'}
