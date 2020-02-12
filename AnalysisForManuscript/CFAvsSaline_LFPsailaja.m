@@ -24,7 +24,9 @@ clear all
     'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M113_C6\M113_C6_Mech+L6_UMS_analysis.mat'...
     'Z:\Sailaja\Manuscript\Data\Juxtasomal\CFA\M133_C2\M113_C2_Mech+L6alone edited_UMS_analysis.mat'...
 %16 channel saline
-    
+    'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\Saline\M7_C3\M7_C3_Mech_05mWanalysis.mat'
+%16 channel saline
+    'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\VPL and L6\24_8_2018\M16_C2\M16_C2_Mech+L6_4mWanalysis.mat'
 
    % 'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\CFA\L6 alone\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'}
 %     % 'Z:\Sailaja\Manuscript\Data\16 channel\Poly2A probe\27_12_2018\M47_C2_L6Mech+L61mWanalysis.mat'...  %this is a repeat?
@@ -40,25 +42,6 @@ clear all
  %'Z:\Sailaja\Manuscript\Data\16 channel\standard 16 channel\probe\M137_C4\M137_C4_Mech+L6 05mWanalysis.mat'}
 
 %% ROSS FILES HERE
-
-% Saline VPL
-    % Folder 'Z:\Ross\Experiments\3.5mW_Saline_VPL'
-    % Folder 'Z:\Ross\Experiments\10mW_Saline_VPL'
-    % 'D:\Ross\4.02.20' 2.5mW - Kilosorting but should be curated by end of 08.02.20
-                
-         
-% CFA VPL
-    % Folder 'Z:\Ross\Experiments\10mW_CFA_VPL'
-    % 'D:\Ross\30.01.20' With LFP
-    
-% CFA Cortex
-    
-    % Folder 'Z:\Ross\Experiments\10mW_CFA_Cortex'
-        
-% DREADD Expts Cortex
-
-    % Gi Folder 'Z:\Ross\Experiments\DREADDs\Gi'  No 'Analysis.mat' file yet
-    % Gq Folder'Z:\Ross\Experiments\DREADDs\Gq'   No 'Analysis.mat' file yet
 
 %%
 
