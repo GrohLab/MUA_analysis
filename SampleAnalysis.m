@@ -1,10 +1,11 @@
-%% multiunit recording practice
+ %% multiunit recording practice
 clearvars
 % cd 'D:\Dropbox\16 Channel Recording may 2018'
 % homedir='F:\Experiments_2018\16 channel\Standard probe\19_4_2018\M137_C5';
-homedir='E:\Data\SuperiorColicullus\M2_190710_SC_Emilio\3790_1200_2780_H5\BF_3mW';
-fname = '1600_BF_3mW';
-expName = 'S1 CTX 3.79 mm';
+homedir='D:\Ross\18.12.19';
+%fname = '17.12.19';
+expName = 'M168_10mW_MechStim_Saline_VPL';
+fname = expName;
 load(fullfile(homedir,[fname,'_all_channels.mat']))
 load(fullfile(homedir,[fname,'analysis.mat']),'Conditions','Triggers')
 if ~iscell(Conditions)
@@ -80,8 +81,8 @@ badsIdx = StepWaveform.subs2idx(bads,size(sortedData,1));
 
 %% DATA EXPLORER SECTION
 % Viewing window and bin size both in seconds
-timeLapse = [0.25, 0.35];
-binSz = 0.002;
+timeLapse = [1, 6];
+binSz = 0.02;
 Ngc = numel(goods);
 % Logical trace for the first considered cluster and column sample
 % subscripts for the rest.
@@ -116,8 +117,8 @@ close all
 %     plot(log10(isi_bins),hisi,'LineWidth',2)
 %     title(['Cluster: ',sortedData{i,1},' #',num2str(i)])
 % end
-
-[~,FRpu] = plotISI(Spikes(goods),fs,sortedData(goods,1));
+spkSubs = cellfun(@(x) round(x.*fs),sortedData(goods,2),'UniformOutput',false);
+[~,FRpu] = plotISI(spkSubs,fs,sortedData(goods,1));
 
 
 %%
@@ -145,13 +146,17 @@ goods = setdiff(1:size(sortedData,1),bads);
 %% looking at collected data
 
 close all
-timeBefore=250*ppms;
-timeAfter=350*ppms;
+timeBefore=1000*ppms;
+timeAfter=6000*ppms;
 binsize=2*ppms;
 plotit=1;
-
+%spikes back in samples
+try
+    spikes=cell2mat(Spikes).*1000.*ppms; 
+catch
+    spikes=cell2mat(Spikes').*1000.*ppms; 
+end
 for I=1:numel(Conditions)
-    spikes=cell2mat(Spikes).*1000.*ppms; %spikes back in samples
     name=Names{I};
     if size(Conditions{I}.Triggers,2) > 1
         triggers=Conditions{I}.Triggers(:,1);
@@ -249,7 +254,7 @@ respUnits = zeros(size(goods,1),1,'single');
 cgu = 0;
 for i=goods
     if ~ismember(i,bads)
-        for I=3:9 %pick out conditions to look at
+        for I=1:4 %pick out conditions to look at
             cgu = cgu + 1;
             spikes=(Spikes{i})*1000*ppms; %spikes back in samples
             name=Names{i};
@@ -363,8 +368,8 @@ Spikes = Spikes_BACKUP;
 % population histogram for later plotting, by condition
 spikes=cell2mat(Spikes)*1000*ppms;
 plotit=true;
-timeBefore=250*ppms;
-timeAfter=350*ppms;
+timeBefore=1000*ppms;
+timeAfter=6000*ppms;
 binsize=2*ppms;
 H=[];
 conds={};

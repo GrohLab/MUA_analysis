@@ -41,6 +41,25 @@ clear all
 
 %% ROSS FILES HERE
 
+% Saline VPL
+    % Folder 'Z:\Ross\Experiments\3.5mW_Saline_VPL'
+    % Folder 'Z:\Ross\Experiments\10mW_Saline_VPL'
+    % 'D:\Ross\4.02.20' 2.5mW - Kilosorting but should be curated by end of 08.02.20
+                
+         
+% CFA VPL
+    % Folder 'Z:\Ross\Experiments\10mW_CFA_VPL'
+    % 'D:\Ross\30.01.20' With LFP
+    
+% CFA Cortex
+    
+    % Folder 'Z:\Ross\Experiments\10mW_CFA_Cortex'
+        
+% DREADD Expts Cortex
+
+    % Gi Folder 'Z:\Ross\Experiments\DREADDs\Gi'  No 'Analysis.mat' file yet
+    % Gq Folder'Z:\Ross\Experiments\DREADDs\Gq'   No 'Analysis.mat' file yet
+
 %%
 
 for I=1:numel(files)
