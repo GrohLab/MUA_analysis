@@ -1,3 +1,4 @@
+
 %%  1. load files
 clear all
 cd 'C:\Users\Rebecca Mease\Documents\GitHub\MUA_analysis\AnalysisForManuscript';
@@ -5,13 +6,17 @@ VPL_file_list %define all the files here
 
 % get data; make sure to deal with different sampling frequencies!!!
 filestr = '\TriggeredAnalysis.mat'
-STRS={'Saline','CFA'}
+STRS={'CFA_cortex','control_Gi','control_Gq'}
 S={};
-S{1}=cellfun(@(x) load([x filestr]),saline_mu,'UniformOutput',0);
-S{2}=cellfun(@(x) load([x filestr]),cfa_mu,'UniformOutput',0);
+S{1}{1}=load([cortex_mu{2}  filestr])
+S{2}{1}=load([cortex_mu{1}  filestr])
+
+
+
 
 %% 2. pooled comparison across animals, not paired!
-
+S{2}{1}.relativeSpikeTimes(:,1)=S{2}{1}.relativeSpikeTimes(:,4);
+S{2}{1}.catSp(:,1)=S{2}{1}.catSp(:,4);
 %get spont rate chunks
 %convert to rates
 %get spont ISIs corresponding to window
@@ -38,180 +43,11 @@ end
 
 
 
-%% 3. Run comparison script
-results=struct([])
-
-% standard order is   [1 Hz 10 Hz laser mech]
-
-windowsize=2
-pads=[.2 .2 0 .2]  %don't need to compensate for lag
-
-
-for J=1:4
-    pad=pads(J);
-    
-    windowE=[pad windowsize+pad]; %window of interest, in seconds;
-    windowC=[-windowsize 0]; %window of interest, in seconds;
-    
-    
-    PopScript
-    results(J).Cs=Cs;
-    results(J).ISIS=ISIS;
-    results(J).Deltas=Deltas;
-    results(J).categories=categories;
-end
-
-%% 4. now we compare mech control and mech with light
-
-I=1  % saline or cfa?
-Mech=results(4).Cs{I}(:,2);
-L1Hz=results(1).Cs{I}(:,2);
-L10Hz=results(2).Cs{I}(:,2);
-
-
-Cs=[Mech L10Hz]
-
-nUnits=size(Cs,1)
-p=nan(nUnits,1);
-deltas=nan(nUnits,1);
-
-eF=[];
-cF=[];
-for n=1:nUnits
-    
-    control=Cs{n,1}';
-    exp=Cs{n,2}';
-    m=min([numel(control) numel(exp)]);
-    
-    p(n) =  ranksum(control(1:m),exp(1:m)); % sign rank test
-    eF(n)=median(exp);
-    cF(n)=median(control);
-    deltas(n)=eF(n)-cF(n);  %experimental - control!
-end
-
-eF=eF';
-cF=cF';
-
-H=p;H(H>.05)=0;H(H~=0)=1;  %each column a different experimental condition
-
-
-fractions=[]
-fractions(1,I)=numel(find(H==0)); %not sig
-fractions(2,I)=numel(find(deltas<0 & H==1)); % sig decrease
-fractions(3,I)=sum(deltas>0 & H==1); %sig increase
-
-figure
-subplot(1,2,I)
-mypie=pie(fractions(:,I))
-title(STRS{I})
-
-
-decrease=(deltas<0 & H==1)
-increase=(deltas>0 & H==1)
-nochange=H==0;
-
-f2=figure
-
-if I==2, col='r'; else col='b';end
-plot(cF(nochange), eF(nochange),['.'],'color',[.7 .7 .7 ])
-hold on
-plot(cF(decrease), eF(decrease),[col 'o'])
-plot(cF(increase), eF(increase),[col 'o'])
-
-plot([0:.01:50], [0:.01:50],'-k')
-%xlim([0 18])
-%ylim([0 18])
-axis square
-ylabel 'Mech Firing [Hz]'
-xlabel 'Mech + light Firing [Hz]'
-
-%% 5. splot PSTHS for mech responsive, mech control
-timeBefore=-3000
-timeAfter=7000
-I=2;
-figure
-counter=0;
-for J=[4 2]
-    counter=counter+1;
-    bins=[timeBefore:100:timeAfter];
-    indices=find(bins>0 & bins<2000)
-    indices=find(bins<0)
-    Hall=[]
-    for i=1%3  %all recordings
-        %concatenate all histograms
-        x=S{I}{i}.relativeSpikeTimes.sp;
-        numtrial=numel(x);
-        new=cellfun(@(x) x/numtrial/.1, S{I}{i}.H(:,J),'UniformOutput', 0)'; %num trials and binsize
-        %new=cellfun(@(x) x/max(x(indices)), new,'UniformOutput', 0)'; %num trials and binsize
-        Hall=[Hall;new'];
-    end
-    
-    
-    mechr=find(results(4).categories{I}(:,3));
-    
-    Hcond=cell2mat(Hall);
-    Hcond=Hcond(mechr,:);
-    
-    for i=1:size(Hcond,1)
-        
-        %Hcond(i,:)= Hcond(i,:)/max(Hcond(i,indices));
-        Hcond(i,:)= Hcond(i,:)/mean(Hcond(i,indices));
-        
-    end
-    %in ms because of division before, though triggered seg takes samples
-    timeBefore=(-3000);
-    timeAfter=round(7000);
-    
-    
-    subplot(1,2,counter)
-    
-    image(bins,1:size(Hcond,2),Hcond,'CDataMapping','scaled')
-    
-    shading flat
-    colormap fire
-    xlim([-1000 3000])
-    
-    
-    
-end
-
-
-for i=1:2
-    subplot(1,2,i)
-    caxis([0 5])
-end
-
-
-
-
-%%  WHAT THE FUCK
-I=2
-figure
-mechr=find(results(4).categories{I}(:,3));
-
-Hcond=cell2mat(S{I}{1}.H(:,4));
-Hcond=Hcond(mechr,:)
-H2=cell2mat(S{I}{1}.H(:,2));
-H2=Hcond(mechr,:)
-for i=1:size(Hcond,1)
-    
-
-    plot(Hcond(i,:))
-    hold on
-    plot(H2(i,:))
-    pause
-    hold off
-end
-
-
-
-
 
 
 
 %% spontaneous window for CFA and Saline
 window=[-1 0]; %window of interest, in seconds;
-
 
 Cs={}; Trials={};SP={};
 for I=1:2
@@ -220,7 +56,7 @@ for I=1:2
     nCond=size(rsp,2);
     ISIs=cell(size(rsp));C=cell(size(rsp));%counts
     Sp=cell(size(rsp));%counts
-    for j=1:nCond
+    for j=1:1
         for n=1:nUnits
             ppms=PPMS{I}(n);
             Sp={};Isis={};
@@ -275,7 +111,7 @@ p=ranksum(MMsaline(:,1),MMcfa(:,1))
 p=ranksum(MMsaline(:,2),MMcfa(:,2))
 
 
-b=boxplot(data,'Notch','on','plotstyle','traditional','datalim',[0 8],'orientation','horizontal','Widths',0.7,'labels',{'Saline','CFA'})
+b=boxplot(data,'Notch','on','plotstyle','traditional','datalim',[0 15],'orientation','horizontal','Widths',0.7,'labels',{'Saline','CFA'})
 
 sact=(sum(MMsaline(:,2)>1)/size(MMsaline(:,2),1))
 fract=[1-sact sact]
@@ -301,7 +137,7 @@ h2=cumsum(h2)/sum(h2);
 
 subplot(2,1,1)
 plot(bins,h1,bins,h2)
-xlim([0 20])
+xlim([0 35])
 
 %% interspike intervals  CDF compare saline and cfa
 X={}
@@ -346,7 +182,7 @@ for I=1:2  %for saline and CFA
     nUnits=size(rsp,1)
     ISIs=cell(nUnits,2);C=cell(nUnits,2);%n neuron by 2 conditions (before and after)
     Sp=cell(nUnits,2);
-    j=4  %just one stimulus
+    j=1  %just one stimulus
     for n=1:nUnits  %for all units
         ppms=PPMS{I}(n);
         Sp={};Sp2={};Isis={};Isis2={};

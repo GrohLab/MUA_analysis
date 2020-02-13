@@ -9,19 +9,38 @@ load([NAME 'analysis.mat'],'Conditions','Triggers')
 load([NAME '_sampling_frequency.mat'])
 
 
-%% light driven units in cortex  CFA???
+%% light driven units in cortex  CFA??? CORTEX
 clear all
 %at the moment, this has light artifacts Feb
-datadir='Z:\Ross\Experiments\17.12.19\HL Cortex'
-cd(datadir)
-
-spikefile='M167_HL_Cortex_all_channels.mat'
-load(spikefile);
-load M167_HL_Cortex_sampling_frequency.mat  
-load M167_HL_Cortexanalysis Conditions Triggers
+file='Z:\Ross\Experiments\10mW_CFA_Cortex\M167_HL_Cortex'
+[FILEPATH,NAME,EXT] = fileparts(file);
+cd(FILEPATH)
+load('re-curated_all_channels.mat');
+load('re-curatedanalysis.mat','Conditions','Triggers')
+load([NAME '_sampling_frequency.mat'])
 
 stimCond=Conditions([1:4]);
 ppms=fs/1000;
+%% DREADDS ANALYSIS inhibitory  CORTEX CONTROL
+
+clear all
+file='Z:\Ross\Experiments\DREADDs\Gi\M34_GiConc'
+[FILEPATH,NAME,EXT] = fileparts(file);
+cd(FILEPATH)
+spikefile=[NAME '_all_channels.mat'];
+load(spikefile);
+load([NAME '_analysis.mat'],'Conditions','Triggers')
+load([NAME '_sampling_frequency.mat'])
+
+%% excitatory   CORTEX CONTROL
+clear all
+file='Z:\Ross\Experiments\DREADDs\Gq\M30_GqConc'
+[FILEPATH,NAME,EXT] = fileparts(file);
+cd(FILEPATH)
+spikefile=[NAME '_all_channels.mat'];
+load(spikefile);
+load([NAME '_analysis.mat'],'Conditions','Triggers')
+load([NAME '_sampling_frequency.mat'])
 
 %%  CFA??
 clear all
@@ -93,14 +112,17 @@ stimCond=stimCond(neworder)
 
 
 ppms=fs/1000;
-%stimCond=Conditions(1:4)  CHANGE THIS THIS!! FOR ROSS DATA!!!
+stimCond=Conditions(1:2) % CHANGE THIS THIS!! FOR ROSS DATA!!!
 goodsInd = cellfun(@(x) x==1,sortedData(:,3));multiInd=[];
 multiInd = cellfun(@(x) x==2,sortedData(:,3));
 goods = [find(goodsInd); find(multiInd)];
-Ns = min(structfun(@numel,Triggers));
+%Ns = min(structfun(@numel,Triggers));
+clusters=sortedData(goods,2);ids=sortedData(goods,1);
+Ns = max(max(cell2mat(clusters)))*ppms*1000; %this is a fix for no mech stim, DREADDS exp
+
 % Total duration of the recording
 Nt = Ns/fs;  %seconds
-clusters=sortedData(goods,2);ids=sortedData(goods,1);
+
 if size(clusters{1},2)~=1,clusters=cellfun(@transpose,clusters,'UniformOutput',0);end
 maxNonZero = sum(cellfun(@numel, clusters));
 biSpikes=spalloc(floor(Nt*1000*ppms),numel(goods),maxNonZero);% preallocate sparse matrix to save space
@@ -198,7 +220,7 @@ for i=1:numel(stimCond)
 end
 savefig('Histograms')
 
-save TriggeredAnalysis bins ppms H catSp stimCond ids relativeSpikeTimes fs binsize
+save TriggeredAnalysis bins ppms H catSp stimCond ids relativeSpikeTimes fs binsize catISIs
 
 
 %%

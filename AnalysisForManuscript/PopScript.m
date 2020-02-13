@@ -1,7 +1,7 @@
 %Gather everything
 Cs={}; Trials={};
 ISIS={};
-for I=1:2  %for saline and CFA
+for I=1:3  %for saline and CFA
     rsp=RSP{I}; %relative spike times
     nUnits=size(rsp,1)
     ISIs=cell(nUnits,2);C=cell(nUnits,2);%n neuron by 2 conditions (before and after)
